@@ -4,7 +4,7 @@
 clsjunk() {
     rm -rf "$workdir_temp"
 }
-#trap clsjunk EXIT
+trap clsjunk EXIT
 OUTPUTLOCATION=$(dirname "$0")
 echo "The Unified Linux Application Project"
 echo "Main Script: tarball to UXE"
