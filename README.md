@@ -4,3 +4,6 @@ This repository consists of the required tools to convert any compiled binary ta
 .ULP executables are self-extracting tarballs that installs the required libraries system-wide, then executes the binary inside the file.
 My main purpose with this project is to prove that Bash isn't just a basic scripting language,and it can be a complex programming language when needed.
 I'll try to keep this project BASH-only as much as I can.
+
+# BIG WARNING
+This project isnt complete yet, and nothing actually runs, so dont try to execute any scripts, it might break your system.
