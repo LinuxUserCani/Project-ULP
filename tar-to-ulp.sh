@@ -1,12 +1,13 @@
 #!/bin/bash
 # unified linux application project
-# main script: .tar to .ULP
+# main script: .tar to .UXE
 clsjunk() {
     rm -rf "$workdir_temp"
 }
 #trap clsjunk EXIT
+OUTPUTLOCATION=$(dirname "$0")
 echo "The Unified Linux Application Project"
-echo "Main Script: tarball to ULP"
+echo "Main Script: tarball to UXE"
 echo "Please input your app's tarball directory"
 read -re tarball_main
 echo "$tarball_main is your app's tarball"
@@ -39,6 +40,7 @@ else
     tar -xvf "$tarball_main" -C "$extract_dir"
 fi
 echo "Your tarball has been extracted."
+read -rp "Please enter the name of your app: " uxename
 # search recursively for executables in the extract directory
 executable_list=()
 while IFS= read -r file; do
@@ -185,7 +187,7 @@ for f in "$apt_file" "$dnf_file" "$pacman_file"; do
 done
 
 
-perm_workdir="$HOME/ULP-Perm-workdir"
+perm_workdir="$HOME/.ulp/ULP-Perm-workdir"
 mkdir -p "$perm_workdir"
 
 mv required_apt.txt required_dnf.txt required_pacman.txt "$perm_workdir/"
@@ -258,7 +260,65 @@ main_exec_compress="${main_exec/#$extract_dir/$compress_dir}"
 
 echo "Main executable inside compress_dir will be: $main_exec_compress"
 # Save the main executable path for run.sh
-echo "$main_exec_compress" > "$compress_dir/ulp_main_exec.txt"
+echo "$(basename "$main_exec_compress")" > "$compress_dir/ulp_main_exec.txt"
+echo "$uxename" > "$compress_dir/ulp_uxe_name.txt"
 cat > "$compress_dir/run.sh" <<'EOF'
 #!/bin/bash
-mkdir -p "$HOME/.ulp
+cd "$(dirname "$0")"
+EXECNAME="$(<ulp_main_exec.txt)"
+UXENAME="$(<ulp_uxe_name.txt)"
+mkdir -p "$HOME/.ulp/apps/$UXENAME"
+cd "$HOME/.ulp/apps/$UXENAME"
+if [[ ! -f "libinstalled" ]]; then
+    cd ulp_libs
+    bash libinst.sh
+    cd ..
+    touch libinstalled
+else
+    echo "App has ran before, no need to reinstall libraries"
+fi
+"$EXECNAME"
+
+EOF
+chmod +x "$compress_dir/run.sh"
+tar -czfv $OUTPUTLOCATION/$uxename.uxe.tmp -C "$compress_dir" .
+# Self-extracting UXE wrapper (runtime $HOME)
+UXE_FINAL="$OUTPUTLOCATION/$uxename.uxe"
+
+cat > "$UXE_FINAL.tmp" <<'EOF'
+#!/bin/bash
+# Self-extracting ULP
+
+UXENAME="'"$uxename"'"
+
+# Target directory (runtime $HOME)
+TARGET="\$HOME/.ulp/apps/\$UXENAME"
+mkdir -p "\$TARGET"
+
+# Find the line where the tar archive starts
+PAYLOAD_LINE=$(awk '/^__UXE_TAR_ARCHIVE_BELOW__/ {print NR + 1; exit 0;}' "$0")
+
+# Extract the tarball payload to target
+tail -n +$PAYLOAD_LINE "$0" | tar -xz -C "$TARGET"
+
+# Run the app
+cd "$TARGET" || exit 1
+bash run.sh
+
+exit 0
+
+__UXE_TAR_ARCHIVE_BELOW__
+EOF
+
+# Append the actual tarball contents
+cat "$OUTPUTLOCATION/$uxename.uxe.tmp" >> "$UXE_FINAL.tmp"
+
+# Replace the original UXE file
+mv "$UXE_FINAL.tmp" "$UXE_FINAL"
+chmod +x "$UXE_FINAL"
+
+# Clean up temp tarball
+rm -f "$OUTPUTLOCATION/$uxename.uxe.tmp"
+
+echo "UXE Executable generated succesfully from your tarball: $UXE_FINAL"
+exit 0
